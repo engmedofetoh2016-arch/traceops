@@ -158,5 +158,29 @@ public class EventsController : ControllerBase
             items
         });
     }
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetEventById([FromRoute] Guid id)
+    {
+        var tenantId = (Guid)HttpContext.Items["TenantId"]!;
+
+        var e = await _db.AuditEvents
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Id == id);
+
+        if (e is null) return NotFound();
+
+        return Ok(new
+        {
+            id = e.Id,
+            occurredAt = e.OccurredAt,
+            actor = e.Actor,
+            action = e.Action,
+            resource = e.Resource,
+            resourceId = e.ResourceId,
+            ip = e.Ip,
+            result = e.Result,
+            metadata = e.Metadata
+        });
+    }
 
 }
