@@ -3,6 +3,9 @@ using TraceOps.Api.Data;
 using TraceOps.Api.Models;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+
 
 
 
@@ -13,8 +16,22 @@ namespace TraceOps.Api.Controllers;
 public class EventsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IHttpClientFactory _http;
+    private readonly IConfiguration _cfg;
 
-    public EventsController(AppDbContext db) => _db = db;
+    public EventsController(AppDbContext db, IHttpClientFactory http, IConfiguration cfg)
+    {
+        _db = db;
+        _http = http;
+        _cfg = cfg;
+    }
+
+    private Guid GetTenantIdFromJwt()
+    {
+        var tenantIdStr = User.Claims.First(c => c.Type == "tenantId").Value;
+        return Guid.Parse(tenantIdStr);
+    }
+
 
     public record IngestEventDto(
         DateTimeOffset occurredAt,
@@ -48,6 +65,34 @@ public class EventsController : ControllerBase
 
         _db.AuditEvents.Add(entity);
         await _db.SaveChangesAsync();
+        try
+        {
+            var url = _cfg["Automation:EventWebhookUrl"];
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                var client = _http.CreateClient();
+
+                await client.PostAsJsonAsync(url, new
+                {
+                    tenantId,
+                    eventId = entity.Id,
+                    occurredAt = entity.OccurredAt,
+                    actor = entity.Actor,
+                    action = entity.Action,
+                    resource = entity.Resource,
+                    resourceId = entity.ResourceId,
+                    ip = entity.Ip,
+                    result = entity.Result,
+                    metadata = dto.metadata
+                });
+            }
+        }
+        catch
+        {
+            // Don't break ingestion if n8n is down.
+            // Add ILogger later if you want to log failures.
+        }
+
 
         return Ok(new { id = entity.Id });
     }
@@ -59,9 +104,11 @@ public class EventsController : ControllerBase
 
         var tenantId = (Guid)HttpContext.Items["TenantId"]!;
 
+        var created = new List<object>(items.Count);
+
         foreach (var dto in items)
         {
-            _db.AuditEvents.Add(new AuditEvent
+            var ev = new AuditEvent
             {
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
@@ -73,12 +120,43 @@ public class EventsController : ControllerBase
                 Ip = dto.ip,
                 Result = dto.result,
                 Metadata = dto.metadata.HasValue ? JsonDocument.Parse(dto.metadata.Value.GetRawText()) : null
+            };
+
+            _db.AuditEvents.Add(ev);
+
+            created.Add(new
+            {
+                tenantId,
+                eventId = ev.Id,
+                occurredAt = ev.OccurredAt,
+                actor = ev.Actor,
+                action = ev.Action,
+                resource = ev.Resource,
+                resourceId = ev.ResourceId,
+                ip = ev.Ip,
+                result = ev.Result,
+                metadata = dto.metadata
             });
         }
 
+
         await _db.SaveChangesAsync();
+        try
+        {
+            var url = _cfg["Automation:EventWebhookUrl"];
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                var client = _http.CreateClient();
+                await client.PostAsJsonAsync(url, new { tenantId, events = created });
+            }
+        }
+        catch
+        {
+        }
+
         return Ok(new { inserted = items.Count });
     }
+    [Authorize]
     [HttpGet]
     public async Task<IActionResult> GetEvents(
     [FromQuery] DateTimeOffset? from,
@@ -93,7 +171,7 @@ public class EventsController : ControllerBase
     [FromQuery] int limit = 50,
     [FromQuery] int offset = 0)
     {
-        var tenantId = (Guid)HttpContext.Items["TenantId"]!;
+        var tenantId = GetTenantIdFromJwt();
 
         // Guardrails
         if (limit < 1) limit = 1;
@@ -158,10 +236,11 @@ public class EventsController : ControllerBase
             items
         });
     }
+    [Authorize]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetEventById([FromRoute] Guid id)
     {
-        var tenantId = (Guid)HttpContext.Items["TenantId"]!;
+        var tenantId = GetTenantIdFromJwt();
 
         var e = await _db.AuditEvents
             .AsNoTracking()
