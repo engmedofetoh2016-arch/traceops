@@ -5,9 +5,11 @@ import EventDetailPage from "./pages/EventDetailPage";
 import AlertsPage from "./pages/AlertsPage";
 import LoginPage from "./pages/LoginPage";
 import { clearToken, getToken, listAlerts } from "./lib/api";
+import type { ReactNode } from "react";
 
-function RequireAuth({ children }: { children: JSX.Element }) {
-  return getToken() ? children : <Navigate to="/login" replace />;
+
+function RequireAuth({ children }: { children: ReactNode }) { 
+   return getToken() ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
