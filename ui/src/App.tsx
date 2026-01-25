@@ -1,15 +1,15 @@
 import { Link, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+
 import EventsPage from "./pages/EventsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import AlertsPage from "./pages/AlertsPage";
 import LoginPage from "./pages/LoginPage";
 import { clearToken, getToken, listAlerts } from "./lib/api";
-import type { ReactNode } from "react";
 
-
-function RequireAuth({ children }: { children: ReactNode }) { 
-   return getToken() ? children : <Navigate to="/login" replace />;
+function RequireAuth({ children }: { children: ReactNode }) {
+  return getToken() ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -20,7 +20,7 @@ export default function App() {
     let cancelled = false;
 
     async function loadCount() {
-      if (!getToken()) return; // don't call alerts if not logged in
+      if (!getToken()) return;
       try {
         const res = await listAlerts({ resolved: false, limit: 1, offset: 0 });
         if (!cancelled) setAlertCount(res.paging.total);
@@ -30,7 +30,9 @@ export default function App() {
     }
 
     loadCount();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const authed = !!getToken();
@@ -39,8 +41,12 @@ export default function App() {
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
       {authed && (
         <header style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
-          <Link to="/" style={{ fontWeight: 700, textDecoration: "none" }}>TRACEOPS</Link>
-          <Link to="/" style={{ textDecoration: "none" }}>Events</Link>
+          <Link to="/" style={{ fontWeight: 700, textDecoration: "none" }}>
+            TRACEOPS
+          </Link>
+          <Link to="/" style={{ textDecoration: "none" }}>
+            Events
+          </Link>
 
           <Link to="/alerts" style={{ textDecoration: "none", display: "flex", gap: 8, alignItems: "center" }}>
             Alerts
@@ -67,7 +73,6 @@ export default function App() {
 
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-
         <Route path="/" element={<RequireAuth><EventsPage /></RequireAuth>} />
         <Route path="/events/:id" element={<RequireAuth><EventDetailPage /></RequireAuth>} />
         <Route path="/alerts" element={<RequireAuth><AlertsPage /></RequireAuth>} />
