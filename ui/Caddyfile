@@ -3,8 +3,5 @@
 root * /srv
 file_server
 
-@api {
-  path /auth/* /v1/*
-}
-
-reverse_proxy @api http://cogcok0s888c0swksw0wc4kg.157.173.102.16.sslip.io
+@api path /auth/* /v1/*
+reverse_proxy @api {$API_UPSTREAM}
