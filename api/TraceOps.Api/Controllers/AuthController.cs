@@ -44,11 +44,13 @@ public class AuthController : ControllerBase
         });
     }
 
-    // Dev-only: create first user for a tenant
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest req)
     {
-        if (!HttpContext.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment())
+        var env = HttpContext.RequestServices.GetRequiredService<IHostEnvironment>();
+        var cfg = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+
+        if (!env.IsDevelopment() && cfg["ALLOW_BOOTSTRAP"] != "true")
             return NotFound();
 
         var exists = await _db.Users.AnyAsync(u => u.TenantId == req.tenantId && u.Email == req.email);
@@ -68,6 +70,7 @@ public class AuthController : ControllerBase
 
         return Ok(new { id = user.Id });
     }
+
 
     private string CreateJwt(User user)
     {
