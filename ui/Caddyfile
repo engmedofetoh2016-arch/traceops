@@ -1,6 +1,6 @@
 :80
 
-root * /app/public
+root * /srv
 file_server
 
 @api {
