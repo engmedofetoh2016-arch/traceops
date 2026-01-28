@@ -1,0 +1,73 @@
+:root {
+  --bg: #f8fafc;
+  --panel: rgba(255, 255, 255, 0.9);
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e5e7eb;
+  --borderSoft: #f1f5f9;
+
+  --primary: #0f172a;
+  --primaryText: #ffffff;
+
+  --shadow: 0 1px 0 rgba(15, 23, 42, 0.05);
+
+  --pillGrayBg: #f1f5f9;
+  --pillGrayBd: #e2e8f0;
+  --pillGrayFg: #0f172a;
+
+  --pillGreenBg: #dcfce7;
+  --pillGreenBd: #bbf7d0;
+  --pillGreenFg: #14532d;
+
+  --pillAmberBg: #fef3c7;
+  --pillAmberBd: #fde68a;
+  --pillAmberFg: #92400e;
+
+  --pillRedBg: #fee2e2;
+  --pillRedBd: #fecaca;
+  --pillRedFg: #7f1d1d;
+}
+
+[data-theme="dark"] {
+  --bg: #0b1220;
+  --panel: rgba(15, 23, 42, 0.6);
+  --card: #0f172a;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #233044;
+  --borderSoft: #152033;
+
+  --primary: #e5e7eb;
+  --primaryText: #0b1220;
+
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+
+  --pillGrayBg: #152033;
+  --pillGrayBd: #233044;
+  --pillGrayFg: #e5e7eb;
+
+  --pillGreenBg: rgba(34, 197, 94, 0.15);
+  --pillGreenBd: rgba(34, 197, 94, 0.25);
+  --pillGreenFg: #86efac;
+
+  --pillAmberBg: rgba(245, 158, 11, 0.15);
+  --pillAmberBd: rgba(245, 158, 11, 0.25);
+  --pillAmberFg: #fcd34d;
+
+  --pillRedBg: rgba(239, 68, 68, 0.15);
+  --pillRedBd: rgba(239, 68, 68, 0.25);
+  --pillRedFg: #fca5a5;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 10% 0%, rgba(59,130,246,0.08), transparent 50%),
+              radial-gradient(900px 500px at 80% 10%, rgba(16,185,129,0.06), transparent 55%),
+              var(--bg);
+  color: var(--text);
+}

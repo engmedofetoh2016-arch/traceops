@@ -5,8 +5,21 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/v1": { target: "https://localhost:7080", changeOrigin: true, secure: false },
-      "/auth": { target: "https://localhost:7080", changeOrigin: true, secure: false },
+      "/auth": {
+        target: "https://localhost:7080",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/v1": {
+        target: "https://localhost:7080",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/dev": {
+        target: "https://localhost:7080",
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });

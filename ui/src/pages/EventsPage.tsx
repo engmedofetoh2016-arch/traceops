@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listEvents, type AuditEvent } from "../lib/api";
+import { Card, CardHeader, CardBody, Button, Input, Badge, table } from "../ui/components";
+
+function toISO(d: Date) { return d.toISOString(); }
 
 export default function EventsPage() {
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +19,13 @@ export default function EventsPage() {
   const [items, setItems] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const query = useMemo(() => ({ q, action, actor, limit, offset }), [q, action, actor, limit, offset]);
+  // Quick range (optional). If backend supports from/to, use it.
+  const [from, setFrom] = useState<string | undefined>(undefined);
+
+  const query = useMemo(
+    () => ({ q, action, actor, from, limit, offset }),
+    [q, action, actor, from, limit, offset]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -45,88 +54,129 @@ export default function EventsPage() {
   const pages = Math.max(1, Math.ceil(total / limit));
 
   return (
-    <div>
-      <section style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setOffset(0); }}
-            placeholder="Search (q)…"
-            style={{ padding: 8, width: 260 }}
-          />
-          <input
-            value={action}
-            onChange={(e) => { setAction(e.target.value); setOffset(0); }}
-            placeholder="Action (exact)…"
-            style={{ padding: 8, width: 220 }}
-          />
-          <input
-            value={actor}
-            onChange={(e) => { setActor(e.target.value); setOffset(0); }}
-            placeholder="Actor (exact)…"
-            style={{ padding: 8, width: 260 }}
-          />
-          <button onClick={() => { setQ(""); setAction(""); setActor(""); setOffset(0); }} style={{ padding: "8px 12px" }}>
-            Clear
-          </button>
-        </div>
+    <div style={{ display: "grid", gap: 14 }}>
+      <Card>
+        <CardHeader
+          title="Events"
+          subtitle="Search and review operational audit events."
+          right={
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Badge tone="gray">Total: {total}</Badge>
+              {loading && <Badge tone="amber">Loading…</Badge>}
+            </div>
+          }
+        />
+        <CardBody>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <Input value={q} onChange={(e) => { setQ(e.target.value); setOffset(0); }}
+              placeholder="Search (q)…" style={{ width: 260 }} />
+            <Input value={action} onChange={(e) => { setAction(e.target.value); setOffset(0); }}
+              placeholder="Action (exact)…" style={{ width: 220 }} />
+            <Input value={actor} onChange={(e) => { setActor(e.target.value); setOffset(0); }}
+              placeholder="Actor (exact)…" style={{ width: 260 }} />
 
-        {error && (
-          <div style={{ marginTop: 10, color: "crimson", whiteSpace: "pre-wrap" }}>
-            {error}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Button onClick={() => { setFrom(toISO(new Date(Date.now() - 24 * 3600 * 1000))); setOffset(0); }}>
+                Last 24h
+              </Button>
+              <Button onClick={() => { setFrom(toISO(new Date(Date.now() - 7 * 24 * 3600 * 1000))); setOffset(0); }}>
+                Last 7d
+              </Button>
+              <Button onClick={() => { setFrom(undefined); setOffset(0); }}>
+                All time
+              </Button>
+            </div>
+
+            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <Button
+                onClick={() => { setQ(""); setAction(""); setActor(""); setFrom(undefined); setOffset(0); }}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
-        )}
-      </section>
 
-      <section style={{ border: "1px solid #ddd", borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontWeight: 600 }}>
-            Events {loading ? "(loading…)" : ""}
-          </div>
-          <div style={{ opacity: 0.7 }}>Total: {total}</div>
-        </div>
+          {error && (
+            <div style={{ marginTop: 12 }}>
+              <Badge tone="red">{error}</Badge>
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f7f7f7" }}>
-              <th style={th}>Time</th>
-              <th style={th}>Actor</th>
-              <th style={th}>Action</th>
-              <th style={th}>Resource</th>
-              <th style={th}>Result</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((e) => (
-              <tr key={e.id}>
-                <td style={td}>
-                  <Link to={`/events/${e.id}`}>{new Date(e.occurredAt).toLocaleString()}</Link>
-                </td>
-                <td style={td}>{e.actor}</td>
-                <td style={td}>{e.action}</td>
-                <td style={td}>{e.resource}{e.resourceId ? `:${e.resourceId}` : ""}</td>
-                <td style={td}>{e.result ?? ""}</td>
+      <Card>
+        <div style={{ overflowX: "auto" }}>
+          <table style={table.table}>
+            <thead>
+              <tr>
+                <th style={table.th}>Time</th>
+                <th style={table.th}>Actor</th>
+                <th style={table.th}>Action</th>
+                <th style={table.th}>Resource</th>
+                <th style={table.th}>Result</th>
               </tr>
-            ))}
-            {!loading && items.length === 0 && (
-              <tr><td style={td} colSpan={5}>No events found.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((e) => {
+                const resultTone =
+                  e.result === "SUCCESS" ? "green" :
+                  e.result ? "amber" : "gray";
 
-        <div style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))} style={{ padding: "8px 12px" }}>
-            Prev
-          </button>
-          <div>Page {page} / {pages}</div>
-          <button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)} style={{ padding: "8px 12px" }}>
-            Next
-          </button>
+                return (
+                  <tr key={e.id} style={table.trHover}
+                    onMouseEnter={(ev) => ((ev.currentTarget.style.background = "rgba(148,163,184,0.08)"))}
+                    onMouseLeave={(ev) => ((ev.currentTarget.style.background = "transparent"))}
+                  >
+                    <td style={table.td}>
+                      <Link to={`/events/${e.id}`} style={{ fontWeight: 900, textDecoration: "none" }}>
+                        {new Date(e.occurredAt).toLocaleString()}
+                      </Link>
+                    </td>
+                    <td style={table.td}>
+                      <span style={{ fontWeight: 700 }}>{e.actor}</span>
+                    </td>
+                    <td style={table.td}>
+                      <Badge tone="gray">{e.action}</Badge>
+                    </td>
+                    <td style={table.td}>
+                      {e.resource}{e.resourceId ? `:${e.resourceId}` : ""}
+                    </td>
+                    <td style={table.td}>
+                      {e.result ? <Badge tone={resultTone as any}>{e.result}</Badge> : <span style={{ color: "var(--muted)" }}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!loading && items.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: 18, color: "var(--muted)", textAlign: "center" }}>
+                    No events found for your filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </section>
+
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: 14,
+          borderTop: "1px solid var(--border)"
+        }}>
+          <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - limit))}>
+            Prev
+          </Button>
+          <div style={{ color: "var(--muted)", fontWeight: 800 }}>
+            Page {page} / {pages}
+          </div>
+          <Button disabled={offset + limit >= total} onClick={() => setOffset(offset + limit)}>
+            Next
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }
-
-const th: React.CSSProperties = { textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" };
-const td: React.CSSProperties = { padding: 10, borderBottom: "1px solid #eee", verticalAlign: "top" };

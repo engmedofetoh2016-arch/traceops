@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getEvent, type AuditEvent } from "../lib/api";
+import { Card, CardHeader, CardBody, Badge } from "../ui/components";
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,42 +29,58 @@ export default function EventDetailPage() {
   }, [id]);
 
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <Link to="/">← Back</Link>
+    <div style={{ display: "grid", gap: 14 }}>
+      <div>
+        <Link to="/" style={{ textDecoration: "none", color: "var(--muted)", fontWeight: 900 }}>← Back</Link>
       </div>
 
-      {loading && <div>Loading…</div>}
-      {error && <div style={{ color: "crimson", whiteSpace: "pre-wrap" }}>{error}</div>}
+      <Card>
+        <CardHeader
+          title="Event details"
+          subtitle={item ? `${item.action} • ${item.resource}${item.resourceId ? ":" + item.resourceId : ""}` : "Loading event"}
+          right={
+            loading ? <Badge tone="amber">Loading…</Badge> :
+            error ? <Badge tone="red">Error</Badge> :
+            item?.result ? <Badge tone={item.result === "SUCCESS" ? "green" : "amber"}>{item.result}</Badge> :
+            <Badge tone="gray">—</Badge>
+          }
+        />
+        <CardBody>
+          {error && <Badge tone="red">{error}</Badge>}
 
-      {item && (
-        <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Event</div>
+          {item && (
+            <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 12 }}>
+              <Label>Time</Label><Value>{new Date(item.occurredAt).toLocaleString()}</Value>
+              <Label>Actor</Label><Value>{item.actor}</Value>
+              <Label>Action</Label><Value><Badge tone="gray">{item.action}</Badge></Value>
+              <Label>Resource</Label><Value>{item.resource}{item.resourceId ? `:${item.resourceId}` : ""}</Value>
+              <Label>IP</Label><Value>{item.ip ?? <span style={{ color: "var(--muted)" }}>—</span>}</Value>
 
-          <Row label="Time" value={new Date(item.occurredAt).toLocaleString()} />
-          <Row label="Actor" value={item.actor} />
-          <Row label="Action" value={item.action} />
-          <Row label="Resource" value={`${item.resource}${item.resourceId ? ":" + item.resourceId : ""}`} />
-          <Row label="IP" value={item.ip ?? ""} />
-          <Row label="Result" value={item.result ?? ""} />
-
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 600, marginBottom: 6 }}>Metadata</div>
-            <pre style={{ background: "#f7f7f7", padding: 12, borderRadius: 8, overflowX: "auto" }}>
-              {JSON.stringify(item.metadata ?? {}, null, 2)}
-            </pre>
-          </div>
-        </div>
-      )}
+              <div style={{ gridColumn: "1 / -1", marginTop: 10 }}>
+                <div style={{ fontWeight: 950, marginBottom: 8 }}>Metadata</div>
+                <pre style={{
+                  margin: 0,
+                  padding: 14,
+                  borderRadius: 14,
+                  border: "1px solid var(--border)",
+                  background: "rgba(148,163,184,0.08)",
+                  overflowX: "auto",
+                  color: "var(--text)"
+                }}>
+                  {JSON.stringify(item.metadata ?? {}, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: "flex", gap: 12, padding: "6px 0", borderBottom: "1px solid #eee" }}>
-      <div style={{ width: 90, opacity: 0.7 }}>{label}</div>
-      <div style={{ flex: 1 }}>{value}</div>
-    </div>
-  );
+function Label({ children }: { children: React.ReactNode }) {
+  return <div style={{ color: "var(--muted)", fontWeight: 900 }}>{children}</div>;
+}
+function Value({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontWeight: 750 }}>{children}</div>;
 }

@@ -106,3 +106,39 @@ export function listAlerts(params: { resolved?: boolean; limit?: number; offset?
   sp.set("offset", String(params.offset ?? 0));
   return request<AlertsResponse>(`/v1/alerts?${sp.toString()}`);
 }
+export function getAlert(id: string) {
+  return request<AlertItem>(`/v1/alerts/${encodeURIComponent(id)}`);
+}
+
+export function resolveAlert(id: string) {
+  return request<{ id: string; isResolved: boolean; resolvedAt?: string }>(
+    `/v1/alerts/${encodeURIComponent(id)}/resolve`,
+    { method: "PATCH" }
+  );
+}
+export function register(payload: {
+  tenantId: string;
+  email: string;
+  password: string;
+  role: string;
+}) {
+  return request<{ id: string }>(`/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+export function devCreateTenant(payload: { name: string }) {
+  return request<{ id: string; name: string }>(`/dev/tenants`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function devListTenants() {
+  return request<{ items: { id: string; name: string; createdAt: string }[] }>(`/dev/tenants`);
+}
+
+
+
