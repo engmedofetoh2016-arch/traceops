@@ -10,6 +10,7 @@ import EventsPage from "./pages/EventsPage";
 import EventDetailPage from "./pages/EventDetailPage";
 import AlertsPage from "./pages/AlertsPage";
 import AlertDetailPage from "./pages/AlertDetailPage";
+import ReportsPage from "./pages/ReportsPage"; // ✅ IMPORTANT
 
 import { clearToken, getToken, listAlerts } from "./lib/api";
 import { ThemeToggle } from "./ui/ThemeToggle";
@@ -39,10 +40,7 @@ export default function App() {
 
     loadCount();
     const t = setInterval(loadCount, 20000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
+    return () => { cancelled = true; clearInterval(t); };
   }, []);
 
   const authed = !!getToken();
@@ -58,58 +56,23 @@ export default function App() {
   });
 
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto", padding: 20 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "14px 16px",
-          borderRadius: 18,
-          border: "1px solid var(--border)",
-          background: "var(--panel)",
-          backdropFilter: "blur(10px)",
-          position: "sticky",
-          top: 14,
-          zIndex: 10,
-        }}
-      >
-        <div style={{ fontWeight: 1000, letterSpacing: -0.6 }}>TRACEOPS</div>
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: 20 }}>
+      {/* header ... your current header here */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ fontWeight: 1000 }}>TRACEOPS</div>
 
         {authed && (
           <>
-            <NavLink to="/" end style={linkStyle}>
-              Events
-            </NavLink>
-            <NavLink to="/alerts" style={linkStyle}>
-              Alerts{" "}
-              {alertCount > 0 && (
-                <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.8 }}>
-                  ({alertCount})
-                </span>
-              )}
-            </NavLink>
+            <NavLink to="/" end style={linkStyle}>Events</NavLink>
+            <NavLink to="/alerts" style={linkStyle}>Alerts ({alertCount})</NavLink>
+            <NavLink to="/reports" style={linkStyle}>Reports</NavLink> {/* ✅ */}
           </>
         )}
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
           <ThemeToggle theme={theme} toggle={toggle} />
           {authed && (
-            <button
-              onClick={() => {
-                clearToken();
-                nav("/login", { replace: true });
-              }}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid var(--border)",
-                background: "transparent",
-                color: "var(--text)",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={() => { clearToken(); nav("/login", { replace: true }); }}>
               Logout
             </button>
           )}
@@ -118,17 +81,20 @@ export default function App() {
 
       <div style={{ height: 14 }} />
 
-      {/* ✅ ROUTES MUST BE HERE */}
       <Routes>
+        {/* public */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/tenants/new" element={<TenantCreatePage />} />
 
+        {/* protected */}
         <Route path="/" element={<RequireAuth><EventsPage /></RequireAuth>} />
         <Route path="/events/:id" element={<RequireAuth><EventDetailPage /></RequireAuth>} />
         <Route path="/alerts" element={<RequireAuth><AlertsPage /></RequireAuth>} />
         <Route path="/alerts/:id" element={<RequireAuth><AlertDetailPage /></RequireAuth>} />
+        <Route path="/reports" element={<RequireAuth><ReportsPage /></RequireAuth>} /> {/* ✅ */}
 
+        {/* fallback */}
         <Route path="*" element={<div style={{ padding: 20 }}>Not found</div>} />
       </Routes>
     </div>

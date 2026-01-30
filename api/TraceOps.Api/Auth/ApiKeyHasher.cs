@@ -11,4 +11,14 @@ public static class ApiKeyHasher
         var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(apiKey));
         return Convert.ToHexString(bytes); // uppercase hex
     }
+
+    // ✅ ADD THIS
+    public static string GenerateKey()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        return Convert.ToBase64String(bytes)
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .TrimEnd('=');
+    }
 }

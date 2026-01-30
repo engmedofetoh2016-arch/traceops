@@ -2,11 +2,15 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
 using System.Text;
 using TraceOps.Api.Auth;
 using TraceOps.Api.Data;
 
+
+
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = LicenseType.Community;
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -94,7 +98,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
+builder.Services.AddScoped<TraceOps.Api.Services.AlertRules>();
 var app = builder.Build();
 
 // Run migrations at startup

@@ -12,6 +12,8 @@ public class AppDbContext : DbContext
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Alert> Alerts => Set<Alert>();
+    public DbSet<ReportRun> ReportRuns => Set<ReportRun>();
+
 
 
 

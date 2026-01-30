@@ -1,13 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Text.Json;
 using TraceOps.Api.Data;
 using TraceOps.Api.Models;
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-
-
-
+using TraceOps.Api.Services;
 
 namespace TraceOps.Api.Controllers;
 
@@ -18,12 +16,14 @@ public class EventsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _http;
     private readonly IConfiguration _cfg;
+    private readonly AlertRules _rules;
 
-    public EventsController(AppDbContext db, IHttpClientFactory http, IConfiguration cfg)
+    public EventsController(AppDbContext db, IHttpClientFactory http, IConfiguration cfg, AlertRules rules)
     {
         _db = db;
         _http = http;
         _cfg = cfg;
+        _rules = rules;
     }
 
     private Guid GetTenantIdFromJwt()
@@ -31,7 +31,6 @@ public class EventsController : ControllerBase
         var tenantIdStr = User.Claims.First(c => c.Type == "tenantId").Value;
         return Guid.Parse(tenantIdStr);
     }
-
 
     public record IngestEventDto(
         DateTimeOffset occurredAt,
@@ -44,6 +43,7 @@ public class EventsController : ControllerBase
         JsonElement? metadata
     );
 
+    // Ingestion endpoint protected by X-API-Key middleware (NOT JWT)
     [HttpPost]
     public async Task<IActionResult> Ingest([FromBody] IngestEventDto dto)
     {
@@ -53,7 +53,7 @@ public class EventsController : ControllerBase
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
-            OccurredAt = dto.occurredAt,
+            OccurredAt = dto.occurredAt == default ? DateTimeOffset.UtcNow : dto.occurredAt,
             Actor = dto.actor,
             Action = dto.action,
             Resource = dto.resource,
@@ -64,7 +64,13 @@ public class EventsController : ControllerBase
         };
 
         _db.AuditEvents.Add(entity);
+
+        // ✅ Apply alert rules BEFORE saving so we commit event + alerts in one SaveChanges
+        _rules.Apply(entity);
+
         await _db.SaveChangesAsync();
+
+        // Optional webhook (n8n) - best-effort
         try
         {
             var url = _cfg["Automation:EventWebhookUrl"];
@@ -89,14 +95,13 @@ public class EventsController : ControllerBase
         }
         catch
         {
-            // Don't break ingestion if n8n is down.
-            // Add ILogger later if you want to log failures.
+            // Don't break ingestion if automation is down.
         }
-
 
         return Ok(new { id = entity.Id });
     }
 
+    // Batch ingestion endpoint protected by X-API-Key middleware (NOT JWT)
     [HttpPost("batch")]
     public async Task<IActionResult> IngestBatch([FromBody] List<IngestEventDto> items)
     {
@@ -112,7 +117,7 @@ public class EventsController : ControllerBase
             {
                 Id = Guid.NewGuid(),
                 TenantId = tenantId,
-                OccurredAt = dto.occurredAt,
+                OccurredAt = dto.occurredAt == default ? DateTimeOffset.UtcNow : dto.occurredAt,
                 Actor = dto.actor,
                 Action = dto.action,
                 Resource = dto.resource,
@@ -123,6 +128,9 @@ public class EventsController : ControllerBase
             };
 
             _db.AuditEvents.Add(ev);
+
+            // ✅ Apply alert rules per event (still only one SaveChanges at end)
+            _rules.Apply(ev);
 
             created.Add(new
             {
@@ -139,8 +147,9 @@ public class EventsController : ControllerBase
             });
         }
 
-
         await _db.SaveChangesAsync();
+
+        // Optional webhook (n8n) - best-effort
         try
         {
             var url = _cfg["Automation:EventWebhookUrl"];
@@ -156,24 +165,25 @@ public class EventsController : ControllerBase
 
         return Ok(new { inserted = items.Count });
     }
+
+    // JWT-protected read endpoints
     [Authorize]
     [HttpGet]
     public async Task<IActionResult> GetEvents(
-    [FromQuery] DateTimeOffset? from,
-    [FromQuery] DateTimeOffset? to,
-    [FromQuery] string? actor,
-    [FromQuery] string? action,
-    [FromQuery] string? resource,
-    [FromQuery] string? resourceId,
-    [FromQuery] string? result,
-    [FromQuery] string? ip,
-    [FromQuery] string? q,
-    [FromQuery] int limit = 50,
-    [FromQuery] int offset = 0)
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] string? actor,
+        [FromQuery] string? action,
+        [FromQuery] string? resource,
+        [FromQuery] string? resourceId,
+        [FromQuery] string? result,
+        [FromQuery] string? ip,
+        [FromQuery] string? q,
+        [FromQuery] int limit = 50,
+        [FromQuery] int offset = 0)
     {
         var tenantId = GetTenantIdFromJwt();
 
-        // Guardrails
         if (limit < 1) limit = 1;
         if (limit > 200) limit = 200;
         if (offset < 0) offset = 0;
@@ -236,6 +246,7 @@ public class EventsController : ControllerBase
             items
         });
     }
+
     [Authorize]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetEventById([FromRoute] Guid id)
@@ -261,5 +272,4 @@ public class EventsController : ControllerBase
             metadata = e.Metadata
         });
     }
-
 }
